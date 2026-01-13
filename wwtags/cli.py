@@ -7,15 +7,22 @@ PLACEHOLDER_MAP = {
     "HMI_TAG": "HMI_TAG",
     "PLC_TAG": "PLC_TAG",
     "COMMENT001": "COMMENT",
-    "ACCESS_NAME": "ACCESS NAME",
-    "ALARM_GROUP": "ALARM GROUP",
+    "ACCESS_NAME": "ACCESS_NAME",
+    "ALARM_GROUP": "ALARM_GROUP",
 }
 
 # Set of required columns that must be present in the input Excel sheet
 REQUIRED_COLUMNS = {
     "HMI_TAG",
-    "PLC_TAG",
+    "ACCESS_NAME",
     "DEVICE_TYPE",
+}
+
+# Set of optional columns for the input Excel sheet. Populate warning if not present
+OPTIONAL_COLUMNS = {
+    "PLC_TAG",
+    "COMMENT",
+    "ALARM_GROUP",
 }
 
 
@@ -49,39 +56,50 @@ def parse_args():
     return parser.parse_args()
 
 
-def read_device_list(ws, strict=False):
+def read_device_list(ws, strict=False, warnings=None, errors=None):
     """
-    Read the "DEVICE_LIST" sheet from the workbook.
-
-    Args:
-        ws (openpyxl.worksheet.worksheet.Worksheet): The worksheet containing the DEVICE_LIST.
-        strict (bool): If True, raise an error on missing required columns or fields.
-
-    Returns:
-        list: List of devices with their details.
+    Read the DEVICE_LIST sheet and return validated device records.
     """
+    if warnings is None:
+        warnings = []
+    if errors is None:
+        errors = []
+
     headers = [cell.value for cell in ws[1]]
 
+    # Check for missing required columns
     missing = REQUIRED_COLUMNS - set(headers)
     if missing:
-        raise RuntimeError(f"Missing required columns: {', '.join(missing)}")
+        msg = f"Missing required columns: {', '.join(sorted(missing))}"
+        if strict:
+            raise RuntimeError(msg)
+        errors.append(msg)
+        return []
 
     devices = []
 
     for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
         record = dict(zip(headers, row))
+        row_valid = True
 
+        # Generate error message if required field is missing
         for field in REQUIRED_COLUMNS:
             if not record.get(field):
+                msg = f"Row {row_idx}: missing required value '{field}' - failed to create tags"
                 if strict:
-                    raise RuntimeError(
-                        f"Row {row_idx}: missing required value '{field}'"
-                    )
-                else:
-                    record = None
-                    break
+                    raise RuntimeError(msg)
+                errors.append(msg)
+                row_valid = False
+                break
 
-        if record:
+        # Generate warning message if required field is missing
+        for field in OPTIONAL_COLUMNS:
+            if not record.get(field):
+                msg = f"Row {row_idx}: missing optional value '{field}'"
+                warnings.append(msg)
+                break
+
+        if row_valid:
             devices.append(record)
 
     return devices
@@ -135,6 +153,8 @@ def main():
     Main function to generate the tag import CSV.
     """
     args = parse_args()
+    warnings = []
+    errors = []
 
     # Load the workbook and ensure the DEVICE_LIST sheet is present
     wb = load_workbook(args.workbook, data_only=True)
@@ -143,7 +163,14 @@ def main():
         raise RuntimeError("DEVICE_LIST sheet not found")
 
     device_ws = wb["DEVICE_LIST"]
-    devices = read_device_list(device_ws, strict=args.strict)
+    devices = read_device_list(
+        device_ws,
+        strict=args.strict,
+        warnings=warnings,
+        errors=errors,
+    )
+
+    devices = [d for d in devices if d is not None]
 
     output_rows = []
 
@@ -188,6 +215,22 @@ def main():
     else:
         print(f"Generated {tag_count} tags → {args.output}")
 
+    # ---- Validation Summary ----
+    if warnings or errors:
+        print("\nValidation Summary")
 
-# if __name__ == "__main__":
-#     main()
+        if errors:
+            print(f"  Errors ({len(errors)}):")
+            for msg in errors:
+                print(f"    - {msg}")
+
+        if warnings:
+            print(f"  Warnings ({len(warnings)}):")
+            for msg in warnings:
+                print(f"    - {msg}")
+    else:
+        print("\nValidation Summary: no issues found")
+
+
+if __name__ == "__main__":  # commented out for CLI tool to work
+    main()

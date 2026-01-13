@@ -6,3 +6,6 @@ dist/
 build/
 
 .env
+
+tags.xlsx
+ww_tag_import.csv
