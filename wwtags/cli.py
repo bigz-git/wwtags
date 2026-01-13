@@ -232,5 +232,5 @@ def main():
         print("\nValidation Summary: no issues found")
 
 
-if __name__ == "__main__":  # commented out for CLI tool to work
-    main()
+# if __name__ == "__main__":  # commented out for CLI tool to work
+#     main()
