@@ -142,5 +142,5 @@ def main():
         print(f"Generated {tag_count} tags → {args.output}")
 
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()
