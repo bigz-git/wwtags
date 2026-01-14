@@ -71,7 +71,20 @@ def parse_args():
         action="version",
         version=f"%(prog)s {pkg_version}"
     )
+    parser.add_argument(
+        "--list-templates",
+        action="store_true",
+        help="List available template sheets in the workbook and exit"
+    )
+
     return parser.parse_args()
+
+
+def list_templates(wb):
+    """
+    Return a list of template sheet names (all sheets except DEVICE_LIST, MADE, and NEED TO MAKE).
+    """
+    return [name for name in wb.sheetnames if name != "DEVICE_LIST" and not name.startswith("$")]
 
 
 def read_device_list(ws, strict=False, warnings=None, errors=None):
@@ -174,9 +187,23 @@ def main():
     warnings = []
     errors = []
 
-    # Load the workbook and ensure the DEVICE_LIST sheet is present
+    # Load the workbook
     wb = load_workbook(args.workbook, data_only=True)
 
+    # Handle --list-templates and exit early
+    if args.list_templates:
+        templates = list_templates(wb)
+
+        if not templates:
+            print("No templates found (only DEVICE_LIST present).")
+        else:
+            print(f"Found {len(templates)} template(s):\n")
+            for name in templates:
+                print(f"  {name}")
+
+        return
+
+        # Check if the DEVICE_LIST sheet is present
     if "DEVICE_LIST" not in wb.sheetnames:
         raise RuntimeError("DEVICE_LIST sheet not found")
 
