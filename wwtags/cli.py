@@ -76,15 +76,13 @@ def parse_args():
         action="store_true",
         help="List available template sheets in the workbook and exit"
     )
+    parser.add_argument(
+        "--list-columns",
+        action="store_true",
+        help="List DEVICE_LIST columns (required and optional) and exit"
+    )
 
     return parser.parse_args()
-
-
-def list_templates(wb):
-    """
-    Return a list of template sheet names (all sheets except DEVICE_LIST, MADE, and NEED TO MAKE).
-    """
-    return [name for name in wb.sheetnames if name != "DEVICE_LIST" and not name.startswith("$")]
 
 
 def read_device_list(ws, strict=False, warnings=None, errors=None):
@@ -179,6 +177,39 @@ def expand_template(ws, device):
     return expanded_rows
 
 
+def list_templates(wb):
+    """
+    Return a list of template sheet names (all sheets except DEVICE_LIST, MADE, and NEED TO MAKE).
+    """
+    return [name for name in wb.sheetnames if name != "DEVICE_LIST" and not name.startswith("$")]
+
+
+def list_columns(ws):
+    """
+    Inspect the DEVICE_LIST sheet and return required/optional columns found.
+    """
+    headers = [cell.value for cell in ws[1] if cell.value]
+
+    found = set(headers)
+
+    required_found = sorted(REQUIRED_COLUMNS & found)
+    required_missing = sorted(REQUIRED_COLUMNS - found)
+
+    optional_found = sorted(OPTIONAL_COLUMNS & found)
+    optional_missing = sorted(OPTIONAL_COLUMNS - found)
+
+    extra_columns = sorted(found - REQUIRED_COLUMNS - OPTIONAL_COLUMNS)
+
+    return {
+        "required_found": required_found,
+        "required_missing": required_missing,
+        "optional_found": optional_found,
+        "optional_missing": optional_missing,
+        "extra_columns": extra_columns,
+        "all_columns": sorted(found),
+    }
+
+
 def main():
     """
     Main function to generate the tag import CSV.
@@ -200,6 +231,47 @@ def main():
             print(f"Found {len(templates)} template(s):\n")
             for name in templates:
                 print(f"  {name}")
+
+        return
+
+        # Handle --list-columns and exit early
+    if args.list_columns:
+        if "DEVICE_LIST" not in wb.sheetnames:
+            raise RuntimeError("DEVICE_LIST sheet not found")
+
+        ws = wb["DEVICE_LIST"]
+        info = list_columns(ws)
+
+        print(f"DEVICE_LIST columns found ({len(info['all_columns'])}):\n")
+
+        print("  REQUIRED:")
+        if info["required_found"]:
+            for col in info["required_found"]:
+                print(f"    {col}")
+        else:
+            print("    (none)")
+
+        if info["required_missing"]:
+            print("\n  MISSING REQUIRED:")
+            for col in info["required_missing"]:
+                print(f"    {col}")
+
+        print("\n  OPTIONAL:")
+        if info["optional_found"]:
+            for col in info["optional_found"]:
+                print(f"    {col}")
+        else:
+            print("    (none)")
+
+        if info["optional_missing"]:
+            print("\n  OPTIONAL NOT PRESENT:")
+            for col in info["optional_missing"]:
+                print(f"    {col}")
+
+        if info["extra_columns"]:
+            print("\n  EXTRA COLUMNS:")
+            for col in info["extra_columns"]:
+                print(f"    {col}")
 
         return
 
