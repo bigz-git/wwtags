@@ -1,3 +1,4 @@
+from importlib.metadata import version, PackageNotFoundError
 import argparse
 import csv
 from openpyxl import load_workbook
@@ -25,6 +26,15 @@ OPTIONAL_COLUMNS = {
     "ALARM_GROUP",
 }
 
+# get version number from pyproject.toml
+
+
+def get_version():
+    try:
+        return version("wwtags")
+    except PackageNotFoundError:
+        return "unknown"
+
 
 def parse_args():
     """
@@ -33,8 +43,11 @@ def parse_args():
     Returns:
         argparse.Namespace: Parsed arguments.
     """
+
+    pkg_version = get_version()
+
     parser = argparse.ArgumentParser(
-        description="Generate Wonderware tag import CSV from Excel templates"
+        description=f"Generate Wonderware tag import CSV from Excel templates\nVersion {pkg_version}"
     )
     parser.add_argument(
         "workbook", help="Excel workbook containing DEVICE_LIST and templates")
@@ -52,6 +65,11 @@ def parse_args():
         "--dry-run",
         action="store_true",
         help="Validate and count tags without writing output file",
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {pkg_version}"
     )
     return parser.parse_args()
 
