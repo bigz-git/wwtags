@@ -1,6 +1,9 @@
 from importlib.metadata import version, PackageNotFoundError
 import argparse
 import csv
+# import os
+import re
+import sys
 from openpyxl import load_workbook
 
 # Mapping placeholders in templates to actual column names
@@ -10,6 +13,7 @@ PLACEHOLDER_MAP = {
     "COMMENT001": "COMMENT",
     "ACCESS_NAME": "ACCESS_NAME",
     "ALARM_GROUP": "ALARM_GROUP",
+    "OFFSET": "OFFSET",
 }
 
 # Set of required columns that must be present in the input Excel sheet
@@ -19,12 +23,13 @@ REQUIRED_COLUMNS = {
     "DEVICE_TYPE",
 }
 
-# Set of optional columns for the input Excel sheet. Populate warning if not present
-OPTIONAL_COLUMNS = {
+# List of optional columns for the input Excel sheet. Ordered for consistent warning output.
+OPTIONAL_COLUMNS = [
     "PLC_TAG",
     "COMMENT",
     "ALARM_GROUP",
-}
+    "OFFSET",
+]
 
 # get version number from pyproject.toml
 
@@ -76,6 +81,21 @@ def parse_args():
         action="store_true",
         help="List available template sheets in the workbook and exit"
     )
+    parser.add_argument(
+        "--filter",
+        metavar="COL=VAL",
+        help="Only process rows where COL equals VAL (e.g. --filter DEVICE_TYPE=VFD)",
+    )
+    # parser.add_argument(
+    #     "--force",
+    #     action="store_true",
+    #     help="Overwrite output file if it already exists",
+    # )
+    parser.add_argument(
+        "--list-columns",
+        action="store_true",
+        help="List DEVICE_LIST columns (required and optional) and exit"
+    )
 
     return parser.parse_args()
 
@@ -111,9 +131,15 @@ def read_device_list(ws, strict=False, warnings=None, errors=None):
 
     for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
         record = dict(zip(headers, row))
+        record["_row_idx"] = row_idx  # ← single source of truth
+
+        # Skip entirely blank rows silently
+        if not any(v for k, v in record.items() if k != "_row_idx"):
+            continue
+
         row_valid = True
 
-        # Generate error message if required field is missing
+        # Required fields
         for field in REQUIRED_COLUMNS:
             if not record.get(field):
                 msg = f"Row {row_idx}: missing required value '{field}' - failed to create tags"
@@ -123,12 +149,12 @@ def read_device_list(ws, strict=False, warnings=None, errors=None):
                 row_valid = False
                 break
 
-        # Generate warning message if required field is missing
-        for field in OPTIONAL_COLUMNS:
-            if not record.get(field):
-                msg = f"Row {row_idx}: missing optional value '{field}'"
-                warnings.append(msg)
-                break
+        # Optional fields — stored on the record so they can be filtered before reporting
+        record["_warnings"] = [
+            f"Row {row_idx}: missing optional value '{field}'"
+            for field in OPTIONAL_COLUMNS
+            if not record.get(field)
+        ]
 
         if row_valid:
             devices.append(record)
@@ -162,21 +188,65 @@ def expand_template(ws, device):
     """
     expanded_rows = []
 
+    # Build base replacement map from PLACEHOLDER_MAP
+    replacements = {
+        token: str(device.get(column, "") or "")
+        for token, column in PLACEHOLDER_MAP.items()
+    }
+
+    # Scan template for OFFSET+N tokens and pre-compute their values
+    offset_raw = device.get("OFFSET")
+    if offset_raw is not None:
+        try:
+            base_offset = int(offset_raw)
+            for row in ws.iter_rows(values_only=True):
+                for cell in row:
+                    if isinstance(cell, str):
+                        for m in re.finditer(r'OFFSET\+(\d+)', cell):
+                            n = int(m.group(1))
+                            replacements[f'OFFSET+{n}'] = str(base_offset + n)
+        except (ValueError, TypeError):
+            pass
+
+    # Sort longest tokens first to prevent OFFSET from matching inside OFFSET+N
+    sorted_tokens = sorted(replacements, key=len, reverse=True)
+
     for row in ws.iter_rows(values_only=True):
-        row = list(row)
-
         new_row = []
-        for cell in row:
+        for cell in list(row):
             if isinstance(cell, str):
-                # Replace placeholders with actual values
-                for token, column in PLACEHOLDER_MAP.items():
-                    value = device.get(column, "") or ""
-                    cell = cell.replace(token, str(value))
+                for token in sorted_tokens:
+                    cell = cell.replace(token, replacements[token])
             new_row.append(cell)
-
         expanded_rows.append(new_row)
 
     return expanded_rows
+
+
+def list_columns(ws):
+    """
+    Inspect the DEVICE_LIST sheet and return required/optional columns found.
+    """
+    headers = [cell.value for cell in ws[1] if cell.value]
+
+    found = set(headers)
+
+    required_found = sorted(REQUIRED_COLUMNS & found)
+    required_missing = sorted(REQUIRED_COLUMNS - found)
+
+    optional_found = sorted(OPTIONAL_COLUMNS & found)
+    optional_missing = sorted(OPTIONAL_COLUMNS - found)
+
+    extra_columns = sorted(found - REQUIRED_COLUMNS - OPTIONAL_COLUMNS)
+
+    return {
+        "required_found": required_found,
+        "required_missing": required_missing,
+        "optional_found": optional_found,
+        "optional_missing": optional_missing,
+        "extra_columns": extra_columns,
+        "all_columns": sorted(found),
+    }
 
 
 def main():
@@ -203,7 +273,48 @@ def main():
 
         return
 
-        # Check if the DEVICE_LIST sheet is present
+    # Handle --list-columns and exit early
+    if args.list_columns:
+        if "DEVICE_LIST" not in wb.sheetnames:
+            raise RuntimeError("DEVICE_LIST sheet not found")
+
+        ws = wb["DEVICE_LIST"]
+        info = list_columns(ws)
+
+        print(f"DEVICE_LIST columns found ({len(info['all_columns'])}):\n")
+
+        print("  REQUIRED:")
+        if info["required_found"]:
+            for col in info["required_found"]:
+                print(f"    {col}")
+        else:
+            print("    (none)")
+
+        if info["required_missing"]:
+            print("\n  MISSING REQUIRED:")
+            for col in info["required_missing"]:
+                print(f"    {col}")
+
+        print("\n  OPTIONAL:")
+        if info["optional_found"]:
+            for col in info["optional_found"]:
+                print(f"    {col}")
+        else:
+            print("    (none)")
+
+        if info["optional_missing"]:
+            print("\n  OPTIONAL NOT PRESENT:")
+            for col in info["optional_missing"]:
+                print(f"    {col}")
+
+        if info["extra_columns"]:
+            print("\n  EXTRA COLUMNS:")
+            for col in info["extra_columns"]:
+                print(f"    {col}")
+
+        return
+
+    # Check if the DEVICE_LIST sheet is present
     if "DEVICE_LIST" not in wb.sheetnames:
         raise RuntimeError("DEVICE_LIST sheet not found")
 
@@ -215,30 +326,39 @@ def main():
         errors=errors,
     )
 
-    devices = [d for d in devices if d is not None]
+    # Apply --filter if specified
+    if args.filter:
+        col, _, val = args.filter.partition("=")
+        if not col or not val:
+            print(
+                f"Error: --filter must be in COL=VAL format, got: {args.filter!r}", file=sys.stderr)
+            sys.exit(1)
+        devices = [d for d in devices if str(d.get(col, "")) == val]
+
+    # Promote per-row warnings only for devices that survived filtering
+    for device in devices:
+        warnings.extend(device.pop("_warnings", []))
 
     output_rows = []
-
     tag_count = 0
 
-    # Iterate over each device and expand its corresponding template
+    # Iterate over validated devices
     for device in devices:
+        row_idx = device["_row_idx"]
         sheet_name = device["DEVICE_TYPE"]
 
-        # Check if the template sheet exists
+        # Template existence check (same behavior as missing required value)
         if sheet_name not in wb.sheetnames:
-            msg = f"Template sheet '{sheet_name}' not found"
+            msg = f"Row {row_idx}: template sheet '{sheet_name}' not found - failed to create tags"
             if args.strict:
                 raise RuntimeError(msg)
-            else:
-                print(f"WARNING: {msg} — skipping")
-                continue
+            errors.append(msg)
+            continue
 
         template_ws = wb[sheet_name]
         rows = expand_template(template_ws, device)
         output_rows.extend(rows)
 
-        # Count tags that are not control rows
         for row in rows:
             if row and not is_control_row(row):
                 tag_count += 1
@@ -247,6 +367,10 @@ def main():
     if args.dry_run:
         print("Dry run enabled — no output file written")
     else:
+        # if not args.force and os.path.exists(args.output):
+        #     print(
+        #         f"Error: output file '{args.output}' already exists. Use --force to overwrite.", file=sys.stderr)
+        #     sys.exit(1)
         with open(args.output, "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
             writer.writerow([":mode=replace"])
@@ -262,20 +386,23 @@ def main():
 
     # ---- Validation Summary ----
     if warnings or errors:
-        print("\nValidation Summary")
+        print("\nValidation Summary", file=sys.stderr)
 
         if errors:
-            print(f"  Errors ({len(errors)}):")
+            print(f"  Errors ({len(errors)}):", file=sys.stderr)
             for msg in errors:
-                print(f"    - {msg}")
+                print(f"    - {msg}", file=sys.stderr)
 
         if warnings:
-            print(f"  Warnings ({len(warnings)}):")
+            print(f"  Warnings ({len(warnings)}):", file=sys.stderr)
             for msg in warnings:
-                print(f"    - {msg}")
+                print(f"    - {msg}", file=sys.stderr)
     else:
         print("\nValidation Summary: no issues found")
 
+    if errors:
+        sys.exit(1)
 
-# if __name__ == "__main__":  # commented out for CLI tool to work
-#     main()
+
+if __name__ == "__main__":
+    main()
