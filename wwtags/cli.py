@@ -13,7 +13,7 @@ PLACEHOLDER_MAP = {
     "COMMENT001": "COMMENT",
     "ACCESS_NAME": "ACCESS_NAME",
     "ALARM_GROUP": "ALARM_GROUP",
-    "OFFSET": "OFFSET",
+    "{OFFSET}": "OFFSET",
 }
 
 # Set of required columns that must be present in the input Excel sheet
@@ -202,9 +202,9 @@ def expand_template(ws, device):
             for row in ws.iter_rows(values_only=True):
                 for cell in row:
                     if isinstance(cell, str):
-                        for m in re.finditer(r'OFFSET\+(\d+)', cell):
+                        for m in re.finditer(r'\{OFFSET\+(\d+)\}', cell):
                             n = int(m.group(1))
-                            replacements[f'OFFSET+{n}'] = str(base_offset + n)
+                            replacements[f'{{OFFSET+{n}}}'] = str(base_offset + n)
         except (ValueError, TypeError):
             pass
 
