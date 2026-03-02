@@ -235,10 +235,10 @@ def list_columns(ws):
     required_found = sorted(REQUIRED_COLUMNS & found)
     required_missing = sorted(REQUIRED_COLUMNS - found)
 
-    optional_found = sorted(OPTIONAL_COLUMNS & found)
-    optional_missing = sorted(OPTIONAL_COLUMNS - found)
+    optional_found = sorted(set(OPTIONAL_COLUMNS) & found)
+    optional_missing = sorted(set(OPTIONAL_COLUMNS) - found)
 
-    extra_columns = sorted(found - REQUIRED_COLUMNS - OPTIONAL_COLUMNS)
+    extra_columns = sorted(found - REQUIRED_COLUMNS - set(OPTIONAL_COLUMNS))
 
     return {
         "required_found": required_found,
