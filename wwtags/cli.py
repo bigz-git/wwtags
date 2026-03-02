@@ -204,7 +204,8 @@ def expand_template(ws, device):
                     if isinstance(cell, str):
                         for m in re.finditer(r'\{OFFSET\+(\d+)\}', cell):
                             n = int(m.group(1))
-                            replacements[f'{{OFFSET+{n}}}'] = str(base_offset + n)
+                            replacements[f'{{OFFSET+{n}}}'] = str(
+                                base_offset + n)
         except (ValueError, TypeError):
             pass
 
