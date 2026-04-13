@@ -7,28 +7,64 @@ A tool that generates Wonderware tag import CSV files from an Excel template. Av
 
 ## Installation
 
-Navigate to the folder containing the `.whl` file and run:
+### Step 1 — Install Python
 
-```bash
-pip install wwtags-x.x.x-py3-none-any.whl
+Python 3.9 or later is required. To check if Python is already installed, open **Command Prompt** (press `Win + R`, type `cmd`, press Enter) and run:
+
+```
+python --version
 ```
 
-To upgrade from a previous version:
+If a version number is printed (e.g. `Python 3.12.0`), Python is installed and you can skip to Step 2.
 
-```bash
-pip install --upgrade wwtags-x.x.x-py3-none-any.whl
+If you see an error or the version is below 3.9, download and install Python from [python.org/downloads](https://www.python.org/downloads/). During installation, check the box that says **"Add Python to PATH"** before clicking Install.
+
+---
+
+### Step 2 — Download the installer file
+
+Go to the **Releases** page of this repository on GitHub and download the latest `.whl` file (e.g. `wwtags-0.3.2-py3-none-any.whl`). It will save to your Downloads folder.
+
+---
+
+### Step 3 — Install the package
+
+Open **Command Prompt** and navigate to your Downloads folder:
+
+```
+cd %USERPROFILE%\Downloads
 ```
 
-Verify the installation:
+Then install the package (replace the filename with the version you downloaded):
 
-```bash
+```
+pip install wwtags-0.3.2-py3-none-any.whl
+```
+
+You should see output ending with `Successfully installed wwtags-...`.
+
+---
+
+### Step 4 — Verify the installation
+
+```
 wwtags --version
 ```
 
-Both the GUI and CLI are installed together. After installation, two commands are available:
+This should print the version number. Both the GUI and CLI are now available:
 
 - `wwtags-gui` — launches the graphical application
-- `wwtags` — the original command-line tool
+- `wwtags` — the command-line tool
+
+---
+
+### Upgrading to a newer version
+
+Download the new `.whl` from the Releases page, then run the same command with `--upgrade`:
+
+```
+pip install --upgrade wwtags-0.3.2-py3-none-any.whl
+```
 
 ---
 
