@@ -21,14 +21,17 @@ class App(tk.Tk):
         self.title("wwtags – Tag Import Generator")
         self.resizable(True, True)
         self.minsize(560, 480)
-        logo_path = Path(__file__).parent.parent / "Official Quad Plus Brand Logo.png"
+        logo_path = Path(__file__).parent.parent / "Quad Plus Brand Logo.png"
+        self._header_logo = None
         if logo_path.exists():
             img = Image.open(logo_path)
-            h = 64
+            h = 40
             w = round(img.width * h / img.height)
-            img = img.resize((w, h), Image.LANCZOS)
-            self._logo = ImageTk.PhotoImage(img)
-            self.iconphoto(True, self._logo)
+            self._header_logo = ImageTk.PhotoImage(img.resize((w, h), Image.LANCZOS))
+            # Also set as window icon where supported (Windows, macOS, some Linux WMs)
+            icon_img = img.resize((64, round(64 * img.height / img.width)), Image.LANCZOS)
+            self._icon = ImageTk.PhotoImage(icon_img)
+            self.iconphoto(True, self._icon)
         self._action_buttons = []
         self._build_ui()
 
@@ -42,8 +45,12 @@ class App(tk.Tk):
         r = 0
 
         # Header
-        ttk.Label(main, text=f"wwtags v{get_version()}", font=("", 10, "bold")).grid(
-            row=r, column=0, columnspan=3, sticky="w", pady=(0, 8)
+        header = ttk.Frame(main)
+        header.grid(row=r, column=0, columnspan=3, sticky="w", pady=(0, 8))
+        if self._header_logo:
+            tk.Label(header, image=self._header_logo, borderwidth=0).pack(side="left", padx=(0, 8))
+        ttk.Label(header, text=f"wwtags v{get_version()}", font=("", 10, "bold")).pack(
+            side="left"
         )
         r += 1
 
