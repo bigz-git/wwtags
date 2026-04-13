@@ -379,7 +379,7 @@ def main():
     if args.dry_run:
         print(f"[DRY RUN] {tag_count} tags would be generated")
     else:
-        print(f"Generated {tag_count} tags → {args.output}")
+        print(f"Generated {tag_count} tags -> {args.output}")
 
     # ---- Validation Summary ----
     if warnings or errors:
