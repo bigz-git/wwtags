@@ -13,6 +13,9 @@ dependencies = [
     "Pillow"
 ]
 
+[tool.setuptools.package-data]
+wwtags = ["*.png"]
+
 [project.scripts]
 wwtags = "wwtags.cli:main"
 wwtags-gui = "wwtags.gui:main"

@@ -21,7 +21,7 @@ class App(tk.Tk):
         self.title("wwtags – Tag Import Generator")
         self.resizable(True, True)
         self.minsize(560, 480)
-        logo_path = Path(__file__).parent.parent / "Quad Plus Brand Logo.png"
+        logo_path = Path(__file__).parent / "Quad Plus Brand Logo.png"
         self._header_logo = None
         if logo_path.exists():
             img = Image.open(logo_path)
