@@ -86,8 +86,7 @@ Use these tokens in your template data rows and they will be replaced automatica
 | `COMMENT001` | Value from the `COMMENT` column |
 | `ACCESS_NAME` | Value from the `ACCESS_NAME` column |
 | `ALARM_GROUP` | Value from the `ALARM_GROUP` column |
-| `{OFFSET}` | The raw value from the `OFFSET` column |
-| `{OFFSET+N}` | `OFFSET` value plus N (e.g. `{OFFSET+4}` adds 4 to the offset) |
+| `{OFFSET+N}` | `OFFSET` value plus N (e.g. `{OFFSET+0}` gives the raw value, `{OFFSET+4}` adds 4) |
 
 The `{OFFSET+N}` placeholder is useful when a device maps to multiple consecutive DB addresses. For example, if a device starts at offset 20, `{OFFSET+0}` gives `20`, `{OFFSET+2}` gives `22`, `{OFFSET+4}` gives `24`, and so on.
 
@@ -199,5 +198,5 @@ PUMP_01_SPEED,Pumps,Feed Pump 1 Speed,PLC1,...
 |---------|-------|
 | `No template found for DEVICE_TYPE 'X'` | The sheet name in the workbook must exactly match the `DEVICE_TYPE` value (case-sensitive) |
 | Missing required field errors | Ensure every row in `DEVICE_LIST` has `HMI_TAG`, `ACCESS_NAME`, and `DEVICE_TYPE` filled in |
-| `OFFSET` not substituting correctly | The `OFFSET` column value must be a number; use `{OFFSET+0}` not `{OFFSET}` for consistency |
+| `OFFSET` not substituting correctly | The `OFFSET` column value must be a number; use `{OFFSET+0}`, `{OFFSET+2}`, etc. |
 | Unexpected blank output | Run with `--dry-run` to see how many tags are being found, and `--list-templates` to verify sheet names |

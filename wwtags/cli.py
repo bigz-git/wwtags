@@ -1,7 +1,6 @@
 from importlib.metadata import version, PackageNotFoundError
 import argparse
 import csv
-# import os
 import re
 import sys
 from openpyxl import load_workbook
@@ -13,7 +12,6 @@ PLACEHOLDER_MAP = {
     "COMMENT001": "COMMENT",
     "ACCESS_NAME": "ACCESS_NAME",
     "ALARM_GROUP": "ALARM_GROUP",
-    "{OFFSET}": "OFFSET",
 }
 
 # Set of required columns that must be present in the input Excel sheet
@@ -86,11 +84,6 @@ def parse_args():
         metavar="COL=VAL",
         help="Only process rows where COL equals VAL (e.g. --filter DEVICE_TYPE=VFD)",
     )
-    # parser.add_argument(
-    #     "--force",
-    #     action="store_true",
-    #     help="Overwrite output file if it already exists",
-    # )
     parser.add_argument(
         "--list-columns",
         action="store_true",
@@ -102,7 +95,7 @@ def parse_args():
 
 def list_templates(wb):
     """
-    Return a list of template sheet names (all sheets except DEVICE_LIST, MADE, and NEED TO MAKE).
+    Return a list of template sheet names (all sheets except DEVICE_LIST and internal $-prefixed sheets).
     """
     return [name for name in wb.sheetnames if name != "DEVICE_LIST" and not name.startswith("$")]
 
@@ -172,7 +165,7 @@ def is_control_row(row):
     Returns:
         bool: True if it's a control row, False otherwise.
     """
-    return isinstance(row[0], str) and row[0].startswith(":")
+    return bool(row) and isinstance(row[0], str) and row[0].startswith(":")
 
 
 def expand_template(ws, device):
@@ -259,7 +252,14 @@ def main():
     errors = []
 
     # Load the workbook
-    wb = load_workbook(args.workbook, data_only=True)
+    try:
+        wb = load_workbook(args.workbook, data_only=True)
+    except FileNotFoundError:
+        print(f"Error: file not found: {args.workbook!r}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:
+        print(f"Error: could not open workbook {args.workbook!r}: {e}", file=sys.stderr)
+        sys.exit(1)
 
     # Handle --list-templates and exit early
     if args.list_templates:
@@ -368,10 +368,6 @@ def main():
     if args.dry_run:
         print("Dry run enabled — no output file written")
     else:
-        # if not args.force and os.path.exists(args.output):
-        #     print(
-        #         f"Error: output file '{args.output}' already exists. Use --force to overwrite.", file=sys.stderr)
-        #     sys.exit(1)
         with open(args.output, "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
             writer.writerow([":mode=replace"])
