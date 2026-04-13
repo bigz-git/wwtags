@@ -4,6 +4,8 @@ import threading
 import tkinter as tk
 from tkinter import ttk, filedialog, scrolledtext
 from importlib.metadata import version, PackageNotFoundError
+from pathlib import Path
+from PIL import Image, ImageTk
 
 
 def get_version():
@@ -19,6 +21,14 @@ class App(tk.Tk):
         self.title("wwtags – Tag Import Generator")
         self.resizable(True, True)
         self.minsize(560, 480)
+        logo_path = Path(__file__).parent.parent / "Official Quad Plus Brand Logo.png"
+        if logo_path.exists():
+            img = Image.open(logo_path)
+            h = 64
+            w = round(img.width * h / img.height)
+            img = img.resize((w, h), Image.LANCZOS)
+            self._logo = ImageTk.PhotoImage(img)
+            self.iconphoto(True, self._logo)
         self._action_buttons = []
         self._build_ui()
 
