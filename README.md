@@ -1,8 +1,7 @@
 # wwtags
 
-A command-line tool that generates Wonderware tag import CSV files from Excel templates.
+A tool that generates Wonderware tag import CSV files from an Excel template. Available as both a graphical application (`wwtags-gui`) and a command-line tool (`wwtags`). Use to generate UDT Wonderware tags.
 
-Instead of manually entering hundreds of tags, you define your devices once in an Excel workbook and let `wwtags` generate the import file automatically.
 
 ---
 
@@ -11,13 +10,13 @@ Instead of manually entering hundreds of tags, you define your devices once in a
 Navigate to the folder containing the `.whl` file and run:
 
 ```bash
-pip install wwtags-0.3.1-py3-none-any.whl
+pip install wwtags-x.x.x-py3-none-any.whl
 ```
 
 To upgrade from a previous version:
 
 ```bash
-pip install --upgrade wwtags-0.3.1-py3-none-any.whl
+pip install --upgrade wwtags-x.x.x-py3-none-any.whl
 ```
 
 Verify the installation:
@@ -25,6 +24,11 @@ Verify the installation:
 ```bash
 wwtags --version
 ```
+
+Both the GUI and CLI are installed together. After installation, two commands are available:
+
+- `wwtags-gui` — launches the graphical application
+- `wwtags` — the original command-line tool
 
 ---
 
@@ -92,7 +96,32 @@ The `{OFFSET+N}` placeholder is useful when a device maps to multiple consecutiv
 
 ---
 
-## Usage
+## GUI Usage
+
+Launch the graphical application:
+
+```bash
+wwtags-gui
+```
+
+The window exposes all the same options as the CLI:
+
+| Control | Description |
+|---------|-------------|
+| **Workbook** | Path to the Excel workbook. Use **Browse…** to open a file picker. |
+| **Output** | Path for the generated CSV (default: `ww_tag_import.csv`). Use **Browse…** to choose a save location. |
+| **Strict** | Checkbox — equivalent to `--strict`. Stops immediately on the first error. |
+| **Dry run** | Checkbox — equivalent to `--dry-run`. Validates and counts tags without writing any file. |
+| **Filter** | Text field — equivalent to `--filter`. Enter `COL=VAL` to process only matching rows (e.g. `DEVICE_TYPE=VFD`). Leave blank to process all rows. |
+| **Generate** | Runs the tag export with the current settings. Disabled until a workbook is selected. |
+| **List Templates** | Lists available template sheets in the workbook. |
+| **List Columns** | Lists the columns present in `DEVICE_LIST` and whether they are required, optional, or unrecognised. |
+
+All output — including validation errors and warnings — appears in the **Log** panel at the bottom of the window.
+
+---
+
+## CLI Usage
 
 ### Basic — Generate the import file
 
@@ -150,6 +179,8 @@ wwtags my_workbook.xlsx --strict
 ---
 
 ## Recommended Workflow
+
+> All steps below can be performed in the GUI (`wwtags-gui`) or via the CLI commands shown.
 
 1. **Inspect** — confirm templates and columns look correct:
    ```bash
