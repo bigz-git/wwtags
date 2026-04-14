@@ -146,7 +146,6 @@ The window exposes all the same options as the CLI:
 |---------|-------------|
 | **Workbook** | Path to the Excel workbook. Use **Browse…** to open a file picker. |
 | **Output** | Path for the generated CSV (default: `ww_tag_import.csv`). Use **Browse…** to choose a save location. |
-| **Strict** | Checkbox — equivalent to `--strict`. Stops immediately on the first error. |
 | **Dry run** | Checkbox — equivalent to `--dry-run`. Validates and counts tags without writing any file. |
 | **Filter** | Text field — equivalent to `--filter`. Enter `COL=VAL` to process only matching rows (e.g. `DEVICE_TYPE=VFD`). Leave blank to process all rows. |
 | **Generate** | Runs the tag export with the current settings. Disabled until a workbook is selected. |
