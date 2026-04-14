@@ -2,7 +2,7 @@ import sys
 import subprocess
 import threading
 import tkinter as tk
-from tkinter import ttk, filedialog, scrolledtext
+from tkinter import ttk, filedialog, messagebox, scrolledtext
 from importlib.metadata import version, PackageNotFoundError
 from pathlib import Path
 from PIL import Image, ImageTk
@@ -33,6 +33,7 @@ class App(tk.Tk):
             self._icon = ImageTk.PhotoImage(icon_img)
             self.iconphoto(True, self._icon)
         self._action_buttons = []
+        self._build_menu()
         self._build_ui()
 
     def _build_ui(self):
@@ -132,6 +133,83 @@ class App(tk.Tk):
 
         self.workbook_var.trace_add("write", self._on_workbook_change)
         self._on_workbook_change()
+
+    # ------------------------------------------------------------------
+    # Menu bar
+    # ------------------------------------------------------------------
+
+    def _build_menu(self):
+        menubar = tk.Menu(self)
+        help_menu = tk.Menu(menubar, tearoff=0)
+        help_menu.add_command(label="How to Use", command=self._show_help)
+        help_menu.add_separator()
+        help_menu.add_command(label="About", command=self._show_about)
+        menubar.add_cascade(label="Help", menu=help_menu)
+        self.config(menu=menubar)
+
+    def _show_help(self):
+        win = tk.Toplevel(self)
+        win.title("How to Use — wwtags")
+        win.resizable(True, True)
+        win.minsize(480, 420)
+
+        text = scrolledtext.ScrolledText(win, wrap="word", padx=12, pady=10)
+        text.pack(fill="both", expand=True)
+
+        help_text = (
+            "wwtags — Wonderware Tag Import Generator\n"
+            "========================================\n\n"
+            "OVERVIEW\n"
+            "--------\n"
+            "This tool reads an Excel workbook containing a DEVICE_LIST sheet\n"
+            "and one or more template sheets, then generates a CSV file\n"
+            "ready to import into Wonderware.\n\n"
+            "FIELDS\n"
+            "------\n"
+            "Workbook\n"
+            "  The Excel workbook to process.\n"
+            "  Click Browse… to select the file.\n\n"
+            "Output\n"
+            "  The name and location of the generated CSV file.\n"
+            "  Default: ww_tag_import.csv (saved to the current directory).\n"
+            "  Click Browse… to choose a different name or location.\n\n"
+            "Dry run\n"
+            "  When checked, validates the workbook and counts tags without\n"
+            "  writing any output file. Use this to check for errors before\n"
+            "  generating.\n\n"
+            "Filter\n"
+            "  Process only rows where a column matches a specific value.\n"
+            "  Enter in COL=VAL format, for example:\n"
+            "    DEVICE_TYPE=VFD\n"
+            "    ALARM_GROUP=Pumps\n"
+            "  Leave blank to process all rows.\n\n"
+            "BUTTONS\n"
+            "-------\n"
+            "Generate\n"
+            "  Runs the tag export with the current settings and writes the\n"
+            "  output CSV file (unless Dry run is checked).\n\n"
+            "List Templates\n"
+            "  Lists all template sheets found in the workbook. Use this to\n"
+            "  confirm sheet names match the DEVICE_TYPE values in\n"
+            "  DEVICE_LIST.\n\n"
+            "List Columns\n"
+            "  Lists the columns present in DEVICE_LIST, showing which are\n"
+            "  required, optional, or unrecognised.\n\n"
+            "LOG PANEL\n"
+            "---------\n"
+            "All output — including tag counts, validation warnings, and\n"
+            "errors — is shown in the log panel at the bottom of the window.\n"
+        )
+
+        text.insert("1.0", help_text)
+        text.config(state="disabled")
+
+    def _show_about(self):
+        messagebox.showinfo(
+            "About wwtags",
+            f"wwtags v{get_version()}\n\nWonderware tag import generator.\n\n"
+            "Generates tag import CSV files from Excel workbook templates.",
+        )
 
     # ------------------------------------------------------------------
     # File dialogs
