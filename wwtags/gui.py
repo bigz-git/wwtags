@@ -18,18 +18,20 @@ def get_version():
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("wwtags – Tag Import Generator")
+        self.title("wwtags – Wonderware Tag Import Generator")
         self.resizable(True, True)
         self.minsize(560, 480)
-        logo_path = Path(__file__).parent / "Quad Plus Brand Logo.png"
         self._header_logo = None
-        if logo_path.exists():
-            img = Image.open(logo_path)
+        header_path = Path(__file__).parent / "qp_logo.png"
+        if header_path.exists():
+            img = Image.open(header_path)
             h = 40
             w = round(img.width * h / img.height)
             self._header_logo = ImageTk.PhotoImage(img.resize((w, h), Image.LANCZOS))
-            # Also set as window icon where supported (Windows, macOS, some Linux WMs)
-            icon_img = img.resize((64, round(64 * img.height / img.width)), Image.LANCZOS)
+
+        icon_path = Path(__file__).parent / "qp_logo_icon.png"
+        if icon_path.exists():
+            icon_img = Image.open(icon_path).resize((64, 64), Image.LANCZOS)
             self._icon = ImageTk.PhotoImage(icon_img)
             self.iconphoto(True, self._icon)
         self._action_buttons = []
@@ -50,9 +52,9 @@ class App(tk.Tk):
         header.grid(row=r, column=0, columnspan=3, sticky="w", pady=(0, 8))
         if self._header_logo:
             tk.Label(header, image=self._header_logo, borderwidth=0).pack(side="left", padx=(0, 8))
-        ttk.Label(header, text=f"wwtags v{get_version()}", font=("", 10, "bold")).pack(
-            side="left"
-        )
+        # ttk.Label(header, text=f"wwtags v{get_version()}", font=("", 10)).pack(
+        #     side="left"
+        # )
         r += 1
 
         # Workbook
