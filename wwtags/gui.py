@@ -31,9 +31,15 @@ class App(tk.Tk):
 
         icon_path = Path(__file__).parent / "qp_logo_icon.png"
         if icon_path.exists():
-            icon_img = Image.open(icon_path).resize((64, 64), Image.LANCZOS)
-            self._icon = ImageTk.PhotoImage(icon_img)
-            self.iconphoto(True, self._icon)
+            try:
+                icon_img = Image.open(icon_path)
+                self._icons = [
+                    ImageTk.PhotoImage(icon_img.resize((s, s), Image.LANCZOS))
+                    for s in (16, 32, 48)
+                ]
+                self.iconphoto(True, *self._icons)
+            except Exception:
+                pass
         self._action_buttons = []
         self._build_menu()
         self._build_ui()
