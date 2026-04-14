@@ -80,11 +80,7 @@ class App(tk.Tk):
         # Checkboxes
         opts = ttk.Frame(main)
         opts.grid(row=r, column=0, columnspan=3, sticky="w")
-        self.strict_var = tk.BooleanVar()
         self.dry_run_var = tk.BooleanVar()
-        ttk.Checkbutton(opts, text="Strict", variable=self.strict_var).pack(
-            side="left", padx=(0, 12)
-        )
         ttk.Checkbutton(opts, text="Dry run", variable=self.dry_run_var).pack(side="left")
         r += 1
 
@@ -185,8 +181,6 @@ class App(tk.Tk):
         output = self.output_var.get().strip()
         if output:
             cmd += ["--output", output]
-        if self.strict_var.get():
-            cmd.append("--strict")
         if self.dry_run_var.get():
             cmd.append("--dry-run")
         filter_val = self.filter_var.get().strip()
