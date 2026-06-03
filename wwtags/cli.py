@@ -95,6 +95,11 @@ def parse_args():
         metavar="L5X_FILE",
         help="Import a Studio5000 UDT .L5X file and add a template sheet to the workbook",
     )
+    parser.add_argument(
+        "--tag-length",
+        action="store_true",
+        help="Check the maximum HMI_TAG value length allowed by each template sheet and exit",
+    )
 
     return parser.parse_args()
 
@@ -221,6 +226,35 @@ def expand_template(ws, device):
         expanded_rows.append(new_row)
 
     return expanded_rows
+
+
+def check_tag_length(wb, limit):
+    """
+    For each template sheet, find the minimum remaining characters available
+    for the HMI_TAG value given the fixed characters surrounding it in column A.
+
+    Returns a list of (sheet_name, max_length) tuples, sorted by sheet name.
+    Sheets with no qualifying rows are omitted.
+    """
+    results = []
+    for name in list_templates(wb):
+        ws = wb[name]
+        min_remaining = None
+        for row in ws.iter_rows(values_only=True):
+            cell = row[0] if row else None
+            if not isinstance(cell, str):
+                continue
+            if is_control_row(row):
+                continue
+            if "HMI_TAG" not in cell:
+                continue
+            fixed = len(cell) - len("HMI_TAG")
+            remaining = limit - fixed
+            if min_remaining is None or remaining < min_remaining:
+                min_remaining = remaining
+        if min_remaining is not None:
+            results.append((name, min_remaining))
+    return results
 
 
 def list_columns(ws):
@@ -496,6 +530,19 @@ def main():
             for col in info["extra_columns"]:
                 print(f"    {col}")
 
+        return
+
+    # Handle --tag-length and exit early
+    if args.tag_length:
+        answer = input("Are you using Wonderware 2023 or later? [y/N]: ").strip().lower()
+        limit = 128 if answer in ("y", "yes") else 32
+        results = check_tag_length(wb, limit)
+        if not results:
+            print("No template sheets with HMI_TAG rows found.")
+        else:
+            print(f"Max HMI_TAG value length per template (Wonderware {'>= 2023' if limit == 128 else '<= 2020'}, limit = {limit} chars):\n")
+            for name, max_len in results:
+                print(f"  {name}: max HMI_TAG value = {max_len} chars")
         return
 
     # Check if the DEVICE_LIST sheet is present
