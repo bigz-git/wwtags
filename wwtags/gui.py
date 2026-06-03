@@ -90,7 +90,9 @@ class App(tk.Tk):
         opts = ttk.Frame(main)
         opts.grid(row=r, column=0, columnspan=3, sticky="w")
         self.dry_run_var = tk.BooleanVar()
-        ttk.Checkbutton(opts, text="Dry run", variable=self.dry_run_var).pack(side="left")
+        ttk.Checkbutton(opts, text="Dry run", variable=self.dry_run_var).pack(side="left", padx=(0, 16))
+        self.ww2023_var = tk.BooleanVar()
+        ttk.Checkbutton(opts, text="Wonderware 2023+", variable=self.ww2023_var).pack(side="left")
         r += 1
 
         # Filter
@@ -327,6 +329,9 @@ class App(tk.Tk):
     # Command builders
     # ------------------------------------------------------------------
 
+    def _ww_version_args(self):
+        return ["--ww-version", "2023" if self.ww2023_var.get() else "2020"]
+
     def _generate_cmd(self):
         cmd = [sys.executable, "-m", "wwtags.cli", self.workbook_var.get().strip()]
         output = self.output_var.get().strip()
@@ -337,6 +342,7 @@ class App(tk.Tk):
         filter_val = self.filter_var.get().strip()
         if filter_val:
             cmd += ["--filter", filter_val]
+        cmd += self._ww_version_args()
         return cmd
 
     def _workbook_only_cmd(self, flag):
@@ -356,16 +362,11 @@ class App(tk.Tk):
         self._run_cmd(self._workbook_only_cmd("--list-columns"))
 
     def _run_tag_length(self):
-        use_2023 = messagebox.askyesno(
-            "Wonderware Version",
-            "Are you using Wonderware 2023 or later?",
-        )
-        ww_version = "2023" if use_2023 else "2020"
         cmd = [
             sys.executable, "-m", "wwtags.cli",
             self.workbook_var.get().strip(),
-            "--tag-length", "--ww-version", ww_version,
-        ]
+            "--tag-length",
+        ] + self._ww_version_args()
         self._run_cmd(cmd)
 
     def _run_import_udt(self):
