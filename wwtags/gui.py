@@ -73,7 +73,7 @@ class App(tk.Tk):
         r += 1
 
         # Output
-        ttk.Label(main, text="Output:").grid(row=r, column=0, sticky="w", pady=2)
+        ttk.Label(main, text="Output File:").grid(row=r, column=0, sticky="w", pady=2)
         self.output_var = tk.StringVar(value="ww_tag_import.csv")
         ttk.Entry(main, textvariable=self.output_var).grid(
             row=r, column=1, sticky="ew", padx=(4, 4)
@@ -121,7 +121,7 @@ class App(tk.Tk):
         )
         self.list_columns_btn.pack(side="left", padx=(0, 8))
         self.tag_length_btn = ttk.Button(
-            btns, text="Tag Length", command=self._run_tag_length
+            btns, text="Check Tag Length", command=self._run_tag_length
         )
         self.tag_length_btn.pack(side="left")
         self._action_buttons = [
@@ -231,7 +231,7 @@ class App(tk.Tk):
             "List Columns\n"
             "  Lists the columns present in DEVICE_LIST, showing which are\n"
             "  required, optional, or unrecognised.\n\n"
-            "Tag Length\n"
+            "Check Tag Length\n"
             "  Checks each template sheet and reports the maximum number of\n"
             "  characters the HMI_TAG value can be, given the fixed characters\n"
             "  surrounding it in each tag row. Prompts for Wonderware version\n"
