@@ -3,6 +3,7 @@ import argparse
 import csv
 import re
 import sys
+import xml.etree.ElementTree as ET
 from openpyxl import load_workbook
 
 # Mapping placeholders in templates to actual column names
@@ -88,6 +89,11 @@ def parse_args():
         "--list-columns",
         action="store_true",
         help="List DEVICE_LIST columns (required and optional) and exit"
+    )
+    parser.add_argument(
+        "--import-udt",
+        metavar="L5X_FILE",
+        help="Import a Studio5000 UDT .L5X file and add a template sheet to the workbook",
     )
 
     return parser.parse_args()
@@ -243,6 +249,170 @@ def list_columns(ws):
     }
 
 
+# ── UDT import helpers ────────────────────────────────────────────────────────
+
+_IODISC_HEADER = [
+    ':IODisc', 'Group', 'Comment', 'Logged', 'EventLogged', 'EventLoggingPriority',
+    'RetentiveValue', 'InitialDisc', 'OffMsg', 'OnMsg', 'AlarmState', 'AlarmPri',
+    'DConversion', 'AccessName', 'ItemUseTagname', 'ItemName', 'ReadOnly',
+    'AlarmComment', 'AlarmAckModel', 'DSCAlarmDisable', 'DSCAlarmInhibitor', 'SymbolicName',
+]
+
+_IOREAL_HEADER = [
+    ':IOReal', 'Group', 'Comment', 'Logged', 'EventLogged', 'EventLoggingPriority',
+    'RetentiveValue', 'RetentiveAlarmParameters', 'AlarmValueDeadband', 'AlarmDevDeadband',
+    'EngUnits', 'InitialValue', 'MinEU', 'MaxEU', 'Deadband', 'LogDeadband',
+    'LoLoAlarmState', 'LoLoAlarmValue', 'LoLoAlarmPri',
+    'LoAlarmState', 'LoAlarmValue', 'LoAlarmPri',
+    'HiAlarmState', 'HiAlarmValue', 'HiAlarmPri',
+    'HiHiAlarmState', 'HiHiAlarmValue', 'HiHiAlarmPri',
+    'MinorDevAlarmState', 'MinorDevAlarmValue', 'MinorDevAlarmPri',
+    'MajorDevAlarmState', 'MajorDevAlarmValue', 'MajorDevAlarmPri',
+    'DevTarget', 'ROCAlarmState', 'ROCAlarmValue', 'ROCAlarmPri', 'ROCTimeBase',
+    'MinRaw', 'MaxRaw', 'Conversion',
+    'AccessName', 'ItemUseTagname', 'ItemName', 'ReadOnly', 'AlarmComment', 'AlarmAckModel',
+    'LoLoAlarmDisable', 'LoAlarmDisable', 'HiAlarmDisable', 'HiHiAlarmDisable',
+    'MinDevAlarmDisable', 'MajDevAlarmDisable', 'RocAlarmDisable',
+    'LoLoAlarmInhibitor', 'LoAlarmInhibitor', 'HiAlarmInhibitor', 'HiHiAlarmInhibitor',
+    'MinDevAlarmInhibitor', 'MajDevAlarmInhibitor', 'RocAlarmInhibitor',
+    'SymbolicName', None,
+]
+
+_IOINT_HEADER = [':IOInt'] + _IOREAL_HEADER[1:]
+
+_UDT_TYPE_HEADERS = {
+    'BIT': _IODISC_HEADER,
+    'REAL': _IOREAL_HEADER,
+    'INT': _IOINT_HEADER,
+    'DINT': _IOINT_HEADER,
+}
+
+_UDT_SKIP_TYPES = {'SINT', 'TIMER'}
+
+
+def _udt_disc_row(tagname, item_name, comment):
+    return [
+        tagname, 'ALARM_GROUP', comment,
+        'No', 'No', 0, 'No',
+        'Off', 'Off', 'On', 'None', 1, 'Direct',
+        'ACCESS_NAME', 'No', item_name, 'Yes',
+        None, 0, 0, None, None,
+    ]
+
+
+def _udt_real_row(tagname, item_name, comment):
+    return [
+        tagname, 'ALARM_GROUP', comment,
+        'No', 'No', 0, 'No', 'No', 0, 0,
+        None, 0, 0, 100, 0, 0.1,
+        'Off', 0, 1, 'Off', 0, 1,
+        'Off', 0, 1, 'Off', 0, 1,
+        'Off', 0, 1, 'Off', 0, 1,
+        0, 'Off', 0, 1, 'Min', 0, 100, 'Linear',
+        'ACCESS_NAME', 'No', item_name, 'Yes',
+        None, 0,
+        0, 0, 0, 0, 0, 0, 0,
+        None, None, None, None, None, None, None,
+        None, None,
+    ]
+
+
+def _udt_int_row(tagname, item_name, comment):
+    return [
+        tagname, 'ALARM_GROUP', comment,
+        'No', 'No', 0, 'No', 'No', 0, 0,
+        None, 0, -32768, 32767, 0, 0,
+        'Off', 0, 1, 'Off', 0, 1,
+        'Off', 0, 1, 'Off', 0, 1,
+        'Off', 0, 1, 'Off', 0, 1,
+        0, 'Off', 0, 1, 'Min', -32768, 32767, 'Linear',
+        'ACCESS_NAME', 'No', item_name, 'Yes',
+        None, 0,
+        0, 0, 0, 0, 0, 0, 0,
+        None, None, None, None, None, None, None,
+        None, None,
+    ]
+
+
+_UDT_ROW_BUILDERS = {
+    'BIT': _udt_disc_row,
+    'REAL': _udt_real_row,
+    'INT': _udt_int_row,
+    'DINT': _udt_int_row,
+}
+
+
+def parse_udt_l5x(path):
+    """
+    Parse a Studio5000 .L5X UDT export file.
+    Returns (udt_name, members, warnings) where members is a list of
+    (member_name, datatype, description).  SINT and TIMER members are excluded.
+    """
+    try:
+        tree = ET.parse(path)
+    except ET.ParseError as e:
+        raise RuntimeError(f"Failed to parse L5X file: {e}") from e
+
+    root = tree.getroot()
+    datatype_elem = root.find('.//DataType[@Use="Target"]')
+    if datatype_elem is None:
+        raise RuntimeError("No DataType[@Use='Target'] element found in L5X file")
+
+    udt_name = datatype_elem.get('Name')
+    members = []
+    warnings = []
+
+    for member in datatype_elem.findall('Members/Member'):
+        dtype = member.get('DataType', '')
+        if dtype in _UDT_SKIP_TYPES:
+            continue
+
+        name = member.get('Name', '')
+        desc_elem = member.find('Description')
+        if desc_elem is not None and desc_elem.text:
+            desc = ' '.join(desc_elem.text.strip().split())
+        else:
+            desc = ''
+
+        if dtype not in _UDT_TYPE_HEADERS:
+            warnings.append(f"Member '{name}' has unsupported DataType '{dtype}' — skipped")
+            continue
+
+        members.append((name, dtype, desc))
+
+    return udt_name, members, warnings
+
+
+def import_udt(l5x_path, wb):
+    """
+    Parse a Studio5000 UDT .L5X file and add a template sheet to wb.
+    Returns (udt_name, member_count, warnings).
+    Raises RuntimeError if the sheet name already exists in the workbook.
+    """
+    udt_name, members, warnings = parse_udt_l5x(l5x_path)
+
+    if udt_name in wb.sheetnames:
+        raise RuntimeError(
+            f"Sheet '{udt_name}' already exists in the workbook"
+        )
+
+    ws = wb.create_sheet(udt_name)
+
+    prev_dtype = None
+    for name, dtype, desc in members:
+        if dtype != prev_dtype:
+            ws.append(_UDT_TYPE_HEADERS[dtype])
+            prev_dtype = dtype
+        tagname = 'HMI_TAG_' + name.lstrip('_')
+        item_name = 'PLC_TAG.' + name
+        ws.append(_UDT_ROW_BUILDERS[dtype](tagname, item_name, desc))
+
+    return udt_name, len(members), warnings
+
+
+# ── end UDT import helpers ─────────────────────────────────────────────────────
+
+
 def main():
     """
     Main function to generate the tag import CSV.
@@ -260,6 +430,19 @@ def main():
     except Exception as e:
         print(f"Error: could not open workbook {args.workbook!r}: {e}", file=sys.stderr)
         sys.exit(1)
+
+    # Handle --import-udt and exit early
+    if args.import_udt:
+        try:
+            udt_name, count, udt_warnings = import_udt(args.import_udt, wb)
+        except (RuntimeError, FileNotFoundError) as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+        wb.save(args.workbook)
+        print(f"Added template sheet '{udt_name}' ({count} tags) -> {args.workbook}")
+        for w in udt_warnings:
+            print(f"  Warning: {w}", file=sys.stderr)
+        return
 
     # Handle --list-templates and exit early
     if args.list_templates:

@@ -7,8 +7,10 @@ dist/
 build/
 
 .env
+*.L5X
 
 todo.md
+CLAUDE.md
 
 ww_tag_import.csv
 c9_ww_conversion_workbook.xlsx
