@@ -119,11 +119,16 @@ class App(tk.Tk):
         self.list_columns_btn = ttk.Button(
             btns, text="List Columns", command=self._run_list_columns
         )
-        self.list_columns_btn.pack(side="left")
+        self.list_columns_btn.pack(side="left", padx=(0, 8))
+        self.tag_length_btn = ttk.Button(
+            btns, text="Tag Length", command=self._run_tag_length
+        )
+        self.tag_length_btn.pack(side="left")
         self._action_buttons = [
             self.generate_btn,
             self.list_templates_btn,
             self.list_columns_btn,
+            self.tag_length_btn,
         ]
         r += 1
 
@@ -226,6 +231,12 @@ class App(tk.Tk):
             "List Columns\n"
             "  Lists the columns present in DEVICE_LIST, showing which are\n"
             "  required, optional, or unrecognised.\n\n"
+            "Tag Length\n"
+            "  Checks each template sheet and reports the maximum number of\n"
+            "  characters the HMI_TAG value can be, given the fixed characters\n"
+            "  surrounding it in each tag row. Prompts for Wonderware version\n"
+            "  (2020 and earlier = 32-char limit; 2023 and later = 128-char\n"
+            "  limit). Use this as a precheck before generating tags.\n\n"
             "UDT IMPORT\n"
             "----------\n"
             "UDT (.L5X)\n"
@@ -343,6 +354,19 @@ class App(tk.Tk):
 
     def _run_list_columns(self):
         self._run_cmd(self._workbook_only_cmd("--list-columns"))
+
+    def _run_tag_length(self):
+        use_2023 = messagebox.askyesno(
+            "Wonderware Version",
+            "Are you using Wonderware 2023 or later?",
+        )
+        ww_version = "2023" if use_2023 else "2020"
+        cmd = [
+            sys.executable, "-m", "wwtags.cli",
+            self.workbook_var.get().strip(),
+            "--tag-length", "--ww-version", ww_version,
+        ]
+        self._run_cmd(cmd)
 
     def _run_import_udt(self):
         cmd = [

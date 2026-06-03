@@ -100,6 +100,11 @@ def parse_args():
         action="store_true",
         help="Check the maximum HMI_TAG value length allowed by each template sheet and exit",
     )
+    parser.add_argument(
+        "--ww-version",
+        choices=["2020", "2023"],
+        help="Wonderware version for --tag-length (2020=32-char limit, 2023=128-char limit); skips interactive prompt",
+    )
 
     return parser.parse_args()
 
@@ -534,8 +539,11 @@ def main():
 
     # Handle --tag-length and exit early
     if args.tag_length:
-        answer = input("Are you using Wonderware 2023 or later? [y/N]: ").strip().lower()
-        limit = 128 if answer in ("y", "yes") else 32
+        if args.ww_version:
+            limit = 128 if args.ww_version == "2023" else 32
+        else:
+            answer = input("Are you using Wonderware 2023 or later? [y/N]: ").strip().lower()
+            limit = 128 if answer in ("y", "yes") else 32
         results = check_tag_length(wb, limit)
         if not results:
             print("No template sheets with HMI_TAG rows found.")
