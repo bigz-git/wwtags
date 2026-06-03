@@ -1,6 +1,6 @@
 # wwtags
 
-A tool that generates Wonderware tag import CSV files from an Excel template. Available as both a graphical application (`wwtags-gui`) and a command-line tool (`wwtags`). Use to generate UDT Wonderware tags.
+A tool that generates Wonderware tag import CSV files from an Excel template. Available as both a graphical application (`wwtags-gui`) and a command-line tool (`wwtags`). Use to generate UDT Wonderware tags. Also includes a Studio5000 UDT importer that builds a ready-to-use template sheet directly from a `.L5X` data type export.
 
 
 ---
@@ -161,6 +161,8 @@ The window exposes all the same options as the CLI:
 | **Generate** | Runs the tag export with the current settings. Disabled until a workbook is selected. |
 | **List Templates** | Lists available template sheets in the workbook. |
 | **List Columns** | Lists the columns present in `DEVICE_LIST` and whether they are required, optional, or unrecognised. |
+| **UDT (.L5X)** | Path to a Studio5000 User Defined Data Type export file. Use **Browse…** to open a file picker. |
+| **Import UDT** | Parses the selected `.L5X` file and adds a new template sheet to the workbook named after the UDT. Disabled until both a workbook and a UDT file are selected. |
 
 All output — including validation errors and warnings — appears in the **Log** panel at the bottom of the window.
 
@@ -212,6 +214,22 @@ Use `--filter` to process only rows where a column matches a specific value:
 wwtags my_workbook.xlsx --filter DEVICE_TYPE=VFD
 wwtags my_workbook.xlsx --filter ALARM_GROUP=Pumps
 ```
+
+### Import a Studio5000 UDT as a template sheet
+
+Export a User Defined Data Type from Studio5000 as an `.L5X` file, then add it as a template sheet to your workbook:
+
+```bash
+wwtags my_workbook.xlsx --import-udt my_udt.L5X
+```
+
+The sheet is named after the UDT (e.g. `my_udt`) and is added in-place to the workbook. Each member becomes a tag row in the appropriate Wonderware section (`:IODisc`, `:IOReal`, or `:IOInt`). `SINT` packed-bit containers and `TIMER` members are excluded automatically.
+
+The placeholders `HMI_TAG`, `PLC_TAG`, `COMMENT001`, `ACCESS_NAME`, and `ALARM_GROUP` are written into every row so the sheet works with the standard tag generation workflow once it is added to `DEVICE_LIST`.
+
+The command exits with an error if a sheet with the UDT name already exists in the workbook.
+
+---
 
 ### Strict mode
 
