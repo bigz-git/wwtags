@@ -157,11 +157,12 @@ The window exposes all the same options as the CLI:
 | **Workbook** | Path to the Excel workbook. Use **Browse…** to open a file picker. |
 | **Output** | Path for the generated CSV (default: `ww_tag_import.csv`). Use **Browse…** to choose a save location. |
 | **Dry run** | Checkbox — equivalent to `--dry-run`. Validates and counts tags without writing any file. |
+| **Wonderware 2023+** | Checkbox — equivalent to `--ww-version 2023`. Sets the tag name limit to 128 characters. When unchecked, the 32-character limit for Wonderware 2020 and earlier is used. Applies to Generate, Dry run, and Check Tag Length. |
 | **Filter** | Text field — equivalent to `--filter`. Enter `COL=VAL` to process only matching rows (e.g. `DEVICE_TYPE=VFD`). Leave blank to process all rows. |
-| **Generate** | Runs the tag export with the current settings. Disabled until a workbook is selected. |
+| **Generate** | Runs the tag export with the current settings. Automatically checks each device's `HMI_TAG` value length against its template and reports a warning if any value exceeds the limit. Disabled until a workbook is selected. |
 | **List Templates** | Lists available template sheets in the workbook. |
 | **List Columns** | Lists the columns present in `DEVICE_LIST` and whether they are required, optional, or unrecognised. |
-| **Check Tag Length** | Prompts for Wonderware version, then reports the maximum number of characters the `HMI_TAG` value can be for each template sheet. Use this as a precheck before generating tags. |
+| **Check Tag Length** | Reports the maximum number of characters the `HMI_TAG` value can be for each template sheet, using the limit set by the Wonderware 2023+ checkbox. Use this as a precheck to know your per-template limits before generating. |
 | **UDT (.L5X)** | Path to a Studio5000 User Defined Data Type export file. Use **Browse…** to open a file picker. |
 | **Import UDT** | Parses the selected `.L5X` file and adds a new template sheet to the workbook named after the UDT. Disabled until both a workbook and a UDT file are selected. |
 
@@ -203,16 +204,22 @@ Check the maximum `HMI_TAG` value length allowed by each template sheet:
 
 ```bash
 wwtags my_workbook.xlsx --tag-length
-```
-
-This prompts for your Wonderware version (2020 and earlier = 32-character limit; 2023 and later = 128-character limit) and then reports the tightest constraint per template. Use this as a precheck to ensure your `HMI_TAG` values in `DEVICE_LIST` won't exceed Wonderware's tag name limit.
-
-You can also skip the interactive prompt by passing `--ww-version` directly:
-
-```bash
-wwtags my_workbook.xlsx --tag-length --ww-version 2020
 wwtags my_workbook.xlsx --tag-length --ww-version 2023
 ```
+
+Reports the tightest per-template constraint based on the fixed characters surrounding the `HMI_TAG` placeholder in each tag row. Use this as a precheck to know your limits before filling in `DEVICE_LIST`. Defaults to the 32-character limit (Wonderware 2020 and earlier) unless `--ww-version 2023` is passed.
+
+### Set the Wonderware version
+
+By default the tool applies Wonderware 2020's 32-character tag name limit. If you are using Wonderware 2023 or later, pass `--ww-version 2023` to apply the 128-character limit instead:
+
+```bash
+wwtags my_workbook.xlsx --ww-version 2023
+wwtags my_workbook.xlsx --dry-run --ww-version 2023
+wwtags my_workbook.xlsx --tag-length --ww-version 2023
+```
+
+This flag affects HMI_TAG length validation during generation, dry run, and `--tag-length` checks.
 
 ### Validate without writing output
 
@@ -221,6 +228,8 @@ Run a dry run to check for errors and see how many tags would be generated, with
 ```bash
 wwtags my_workbook.xlsx --dry-run
 ```
+
+During both dry run and normal generation, the tool automatically checks every device's `HMI_TAG` value length against the maximum allowed by its template sheet and reports a warning in the Validation Summary for any that exceed the limit.
 
 ### Process only a subset of devices
 
@@ -315,3 +324,4 @@ PUMP_01_SPEED,Pumps,Feed Pump 1 Speed,PLC1,...
 | Missing required field errors | Ensure every row in `DEVICE_LIST` has `HMI_TAG`, `ACCESS_NAME`, and `DEVICE_TYPE` filled in |
 | `OFFSET` not substituting correctly | The `OFFSET` column value must be a number; use `{OFFSET+0}`, `{OFFSET+2}`, etc. |
 | Unexpected blank output | Run with `--dry-run` to see how many tags are being found, and `--list-templates` to verify sheet names |
+| `HMI_TAG '...' exceeds max length` warning | The `HMI_TAG` value in `DEVICE_LIST` is too long for its template. Run `--tag-length` to see the per-template limits, then shorten the value. If you are on Wonderware 2023+, pass `--ww-version 2023` to apply the 128-character limit. |
