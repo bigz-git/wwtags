@@ -119,6 +119,13 @@ Template sheets use Wonderware's CSV format with **control rows** and **data row
    - If you are unsure how to format a control row, the best way is to: Create a tag of the desired data type in WindowMaker. Save and close WindowMaker. Export the tag database (DBDump). Open the tag database and find the created tag. The first control row above the newly created tag will correspond to that tag's datatype.
 - **Data rows** contain the actual tag values, using **placeholders** that get replaced with each device's data.
 
+> If you are unsure how to format a control row, follow these steps:
+> - Create a tag of the desired data type in WindowMaker
+> - Save and close WindowMaker
+> - Export the tag database (DBDump)
+> - Open the tag database and find the created tag
+> - The first control row above the newly created tag will correspond to that tag's datatype
+
 #### Placeholders
 
 Use these tokens in your template data rows and they will be replaced automatically:
