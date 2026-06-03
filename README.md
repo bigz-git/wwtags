@@ -23,13 +23,13 @@ If you see an error or the version is below 3.9, download and install Python fro
 
 ### Step 2 — Download the installer file
 
-Go to the **Releases** page of this repository on GitHub and download the latest `.whl` file (e.g. `wwtags-0.3.2-py3-none-any.whl`). It will save to your Downloads folder.
+Go to the [Releases](../../releases) page of this repository on GitHub and download the latest `.whl` file (e.g. `wwtags-0.3.2-py3-none-any.whl`). It will save to your Downloads folder.
 
 ---
 
 ### Step 3 — Install the package
 
-Open **Command Prompt** and navigate to your Downloads folder:
+Open **Command Prompt** (or **PowerShell**) and navigate to your Downloads folder:
 
 ```
 cd %USERPROFILE%\Downloads
@@ -60,10 +60,10 @@ This should print the version number. Both the GUI and CLI are now available:
 
 ### Upgrading to a newer version
 
-Download the new `.whl` from the Releases page, then run the same command with `--upgrade`:
+Download the new `.whl` from the Releases page, then run the same command:
 
 ```
-pip install --upgrade wwtags-0.3.2-py3-none-any.whl
+pip install wwtags-0.3.5-py3-none-any.whl
 ```
 
 ---
@@ -87,11 +87,11 @@ The first sheet must be named `DEVICE_LIST`. Each row represents one device.
 
 | Column | Required | Description |
 |--------|----------|-------------|
-| `HMI_TAG` | Yes | The tag name used in the HMI (e.g. `PUMP_01`) |
+| `HMI_TAG` | Yes | The unique part of the tag name used in the HMI (e.g. `PUMP_01`, `PUMP_02`, etc.) |
 | `ACCESS_NAME` | Yes | The access name configured in Wonderware (e.g. `PLC1`) |
 | `DEVICE_TYPE` | Yes | Name of the template sheet to use for this device |
-| `PLC_TAG` | No | PLC-side address or DB name (e.g. `DB61`) |
-| `COMMENT` | No | Description of the device |
+| `PLC_TAG` | No | The unique part of the tag name used in the PLC (Rockwell) or the DB name (Siemens) (e.g. `PUMP_01` or `DB61`) |
+| `COMMENT` | No | Description of the device (this will replace the text `COMMENT001` in the 'Comment' column of the Device Template sheet) |
 | `ALARM_GROUP` | No | Alarm group name |
 | `OFFSET` | No | Numeric base offset for Step 7 DB addressing |
 
@@ -99,8 +99,11 @@ The first sheet must be named `DEVICE_LIST`. Each row represents one device.
 
 | HMI_TAG | PLC_TAG | COMMENT | ACCESS_NAME | ALARM_GROUP | DEVICE_TYPE | OFFSET |
 |---------|---------|---------|-------------|-------------|-------------|--------|
-| PUMP_01 | DB61 | Feed Pump 1 | PLC1 | Pumps | S7 Template | 20 |
-| VFD_02 | DB62 | Conveyor Drive | PLC1 | Drives | VFD | 40 |
+| PUMP_01 | DB61 | Feed Pump 1 | S7_PLC1 | Pumps | S7 Template | 20 |
+| PUMP_02 | DB61 | Feed Pump 2 | S7_PLC1 | Pumps | S7 Template | 40 |
+| PUMP_03 | DB61 | Feed Pump 3 | S7_PLC1 | Pumps | S7 Template | 60 |
+| VFD_01 | VFD1 | Dryer Zone 1 Fan | AB_PLC1 | Drives | VFD | na |
+| VFD_02 | VFD2 | Dryer Zone 2 Fan | AB_PLC1 | Drives | VFD | na |
 
 > Blank rows in the sheet are automatically skipped.
 
@@ -112,7 +115,8 @@ Each template sheet defines the tag structure for one device type. The sheet nam
 
 Template sheets use Wonderware's CSV format with **control rows** and **data rows**:
 
-- **Control rows** start with `:` (e.g. `:IODisc`, `:IOInt`, `:IOReal`) and define the tag type and column headers for the rows that follow.
+- **Control rows** start with `:` (e.g. `:IODisc`, `:IOInt`, `:IOReal`) and define the tag type and column headers for the rows that follow. 
+   - If you are unsure how to format a control row, the best way is to: Create a tag of the desired data type in WindowMaker. Save and close WindowMaker. Export the tag database (DBDump). Open the tag database and find the created tag. The first control row above the newly created tag will correspond to that tag's datatype.
 - **Data rows** contain the actual tag values, using **placeholders** that get replaced with each device's data.
 
 #### Placeholders
@@ -126,7 +130,7 @@ Use these tokens in your template data rows and they will be replaced automatica
 | `COMMENT001` | Value from the `COMMENT` column |
 | `ACCESS_NAME` | Value from the `ACCESS_NAME` column |
 | `ALARM_GROUP` | Value from the `ALARM_GROUP` column |
-| `{OFFSET+N}` | `OFFSET` value plus N (e.g. `{OFFSET+0}` gives the raw value, `{OFFSET+4}` adds 4) |
+| `{OFFSET+N}` (Step 7 Addressing) | `OFFSET` value plus N (e.g. `{OFFSET+0}` gives the raw value, `{OFFSET+4}` adds 4) |
 
 The `{OFFSET+N}` placeholder is useful when a device maps to multiple consecutive DB addresses. For example, if a device starts at offset 20, `{OFFSET+0}` gives `20`, `{OFFSET+2}` gives `22`, `{OFFSET+4}` gives `24`, and so on.
 
@@ -164,12 +168,12 @@ All output — including validation errors and warnings — appears in the **Log
 wwtags my_workbook.xlsx
 ```
 
-This creates `ww_tag_import.csv` in the current directory.
+This creates `ww_tag_import.csv` in the current directory (assuming that my_workbook.xlsx exists and is formatted properly).
 
 ### Specify a custom output filename
 
 ```bash
-wwtags my_workbook.xlsx --output site_a_tags.csv
+wwtags my_workbook.xlsx --output winder_tag_import.csv
 ```
 
 ### Inspect the workbook before generating
