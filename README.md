@@ -161,6 +161,7 @@ The window exposes all the same options as the CLI:
 | **Generate** | Runs the tag export with the current settings. Disabled until a workbook is selected. |
 | **List Templates** | Lists available template sheets in the workbook. |
 | **List Columns** | Lists the columns present in `DEVICE_LIST` and whether they are required, optional, or unrecognised. |
+| **Check Tag Length** | Prompts for Wonderware version, then reports the maximum number of characters the `HMI_TAG` value can be for each template sheet. Use this as a precheck before generating tags. |
 | **UDT (.L5X)** | Path to a Studio5000 User Defined Data Type export file. Use **Browse…** to open a file picker. |
 | **Import UDT** | Parses the selected `.L5X` file and adds a new template sheet to the workbook named after the UDT. Disabled until both a workbook and a UDT file are selected. |
 
@@ -196,6 +197,21 @@ List the columns present in `DEVICE_LIST` (and whether they are required, option
 
 ```bash
 wwtags my_workbook.xlsx --list-columns
+```
+
+Check the maximum `HMI_TAG` value length allowed by each template sheet:
+
+```bash
+wwtags my_workbook.xlsx --tag-length
+```
+
+This prompts for your Wonderware version (2020 and earlier = 32-character limit; 2023 and later = 128-character limit) and then reports the tightest constraint per template. Use this as a precheck to ensure your `HMI_TAG` values in `DEVICE_LIST` won't exceed Wonderware's tag name limit.
+
+You can also skip the interactive prompt by passing `--ww-version` directly:
+
+```bash
+wwtags my_workbook.xlsx --tag-length --ww-version 2020
+wwtags my_workbook.xlsx --tag-length --ww-version 2023
 ```
 
 ### Validate without writing output
@@ -251,17 +267,22 @@ wwtags my_workbook.xlsx --strict
    wwtags my_workbook.xlsx --list-columns
    ```
 
-2. **Validate** — check for errors before generating:
+2. **Check tag length** — confirm your `HMI_TAG` values will fit within Wonderware's limit:
+   ```bash
+   wwtags my_workbook.xlsx --tag-length
+   ```
+
+3. **Validate** — check for errors before generating:
    ```bash
    wwtags my_workbook.xlsx --dry-run
    ```
 
-3. **Generate** — create the import file:
+4. **Generate** — create the import file:
    ```bash
    wwtags my_workbook.xlsx --output ww_import.csv
    ```
 
-4. **Import** into Wonderware using the generated CSV.
+5. **Import** into Wonderware using the generated CSV.
 
 ---
 
