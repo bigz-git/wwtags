@@ -132,6 +132,28 @@ class App(tk.Tk):
         )
         r += 1
 
+        # UDT import
+        ttk.Label(main, text="UDT (.L5X):").grid(row=r, column=0, sticky="w", pady=2)
+        self.l5x_var = tk.StringVar()
+        ttk.Entry(main, textvariable=self.l5x_var).grid(
+            row=r, column=1, sticky="ew", padx=(4, 4)
+        )
+        ttk.Button(main, text="Browse…", command=self._browse_l5x).grid(row=r, column=2)
+        r += 1
+
+        udt_btns = ttk.Frame(main)
+        udt_btns.grid(row=r, column=0, columnspan=3, sticky="w")
+        self.import_udt_btn = ttk.Button(
+            udt_btns, text="Import UDT", command=self._run_import_udt
+        )
+        self.import_udt_btn.pack(side="left")
+        r += 1
+
+        ttk.Separator(main, orient="horizontal").grid(
+            row=r, column=0, columnspan=3, sticky="ew", pady=6
+        )
+        r += 1
+
         # Log panel
         ttk.Label(main, text="Log:").grid(row=r, column=0, columnspan=3, sticky="w")
         r += 1
@@ -140,6 +162,7 @@ class App(tk.Tk):
         main.rowconfigure(r, weight=1)
 
         self.workbook_var.trace_add("write", self._on_workbook_change)
+        self.l5x_var.trace_add("write", self._on_l5x_change)
         self._on_workbook_change()
 
     # ------------------------------------------------------------------
@@ -203,6 +226,18 @@ class App(tk.Tk):
             "List Columns\n"
             "  Lists the columns present in DEVICE_LIST, showing which are\n"
             "  required, optional, or unrecognised.\n\n"
+            "UDT IMPORT\n"
+            "----------\n"
+            "UDT (.L5X)\n"
+            "  A Studio5000 User Defined Data Type export file (.L5X).\n"
+            "  Click Browse… to select the file.\n\n"
+            "Import UDT\n"
+            "  Parses the selected .L5X file and adds a new template sheet\n"
+            "  to the workbook, named after the UDT (e.g. QP_DRV_ETH_04_v01).\n"
+            "  Each UDT member becomes a tag row in the correct Wonderware\n"
+            "  section (:IODisc, :IOReal, or :IOInt).\n"
+            "  SINT packed-bit containers and TIMER members are excluded.\n"
+            "  Errors if a sheet with the UDT name already exists.\n\n"
             "LOG PANEL\n"
             "---------\n"
             "All output — including tag counts, validation warnings, and\n"
@@ -241,6 +276,14 @@ class App(tk.Tk):
         if path:
             self.output_var.set(path)
 
+    def _browse_l5x(self):
+        path = filedialog.askopenfilename(
+            title="Select UDT L5X File",
+            filetypes=[("L5X files", "*.L5X *.l5x"), ("XML files", "*.xml"), ("All files", "*.*")],
+        )
+        if path:
+            self.l5x_var.set(path)
+
     # ------------------------------------------------------------------
     # Button state management
     # ------------------------------------------------------------------
@@ -249,14 +292,25 @@ class App(tk.Tk):
         state = "normal" if self.workbook_var.get().strip() else "disabled"
         for btn in self._action_buttons:
             btn.config(state=state)
+        self._update_import_udt_state()
+
+    def _on_l5x_change(self, *_):
+        self._update_import_udt_state()
+
+    def _update_import_udt_state(self):
+        enabled = bool(self.workbook_var.get().strip() and self.l5x_var.get().strip())
+        self.import_udt_btn.config(state="normal" if enabled else "disabled")
 
     def _set_busy(self, busy):
         if busy:
-            state = "disabled"
+            for btn in self._action_buttons:
+                btn.config(state="disabled")
+            self.import_udt_btn.config(state="disabled")
         else:
             state = "normal" if self.workbook_var.get().strip() else "disabled"
-        for btn in self._action_buttons:
-            btn.config(state=state)
+            for btn in self._action_buttons:
+                btn.config(state=state)
+            self._update_import_udt_state()
 
     # ------------------------------------------------------------------
     # Command builders
@@ -289,6 +343,14 @@ class App(tk.Tk):
 
     def _run_list_columns(self):
         self._run_cmd(self._workbook_only_cmd("--list-columns"))
+
+    def _run_import_udt(self):
+        cmd = [
+            sys.executable, "-m", "wwtags.cli",
+            self.workbook_var.get().strip(),
+            "--import-udt", self.l5x_var.get().strip(),
+        ]
+        self._run_cmd(cmd)
 
     def _run_cmd(self, cmd):
         self._set_busy(True)
